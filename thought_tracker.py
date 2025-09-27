@@ -38,8 +38,13 @@ class Thought:
 class ThoughtDatabase:
     """Class quản lý database cho thoughts"""
     
-    def __init__(self, db_path: str = "thoughts.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: str = None):
+        import os
+        # Sử dụng đường dẫn tương đối cho Railway
+        if db_path is None:
+            self.db_path = os.path.join(os.getcwd(), "thoughts.db")
+        else:
+            self.db_path = db_path
         self.init_database()
     
     def init_database(self):

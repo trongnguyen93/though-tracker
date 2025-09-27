@@ -5,6 +5,10 @@ Flask==2.3.3
 Werkzeug==2.3.7
 Pillow==11.3.0
 
+# SQLite3 is built-in with Python, no need to install
+
+# Production Server
+gunicorn==21.2.0
+
 # Optional: For better development experience
 # python-dotenv==1.0.0  # For environment variables
-# gunicorn==21.2.0      # For production deployment
