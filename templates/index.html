@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Trang chủ - Thought Tracker{% endblock %}
+
+{% block content %}
+<!-- Hướng dẫn sử dụng -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-light border">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Hướng dẫn sử dụng
+                </h6>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#helpGuide" aria-expanded="false">
+                    <i class="fas fa-chevron-down" id="helpToggle"></i>
+                </button>
+            </div>
+            <div class="collapse" id="helpGuide">
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <small class="text-muted">
+                            <strong>1. Viết suy nghĩ:</strong><br>
+                            Ghi lại những gì bạn đang nghĩ, cảm nhận hoặc muốn nhớ
+                        </small>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">
+                            <strong>2. Thêm từ khóa:</strong><br>
+                            Phân cách bằng dấu phẩy để dễ tìm kiếm sau này
+                        </small>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">
+                            <strong>3. Chọn mức độ:</strong><br>
+                            1-5 sao tùy theo mức độ quan trọng của suy nghĩ
+                        </small>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted">
+                            <strong>4. Thêm ảnh:</strong><br>
+                            Tùy chọn thêm ảnh minh họa cho suy nghĩ
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Form thêm thought -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_thought') }}" enctype="multipart/form-data">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="content" class="form-label small text-muted">
+                                <i class="fas fa-edit me-1"></i>Nội dung suy nghĩ
+                            </label>
+                            <textarea class="form-control" id="content" name="content" rows="3" 
+                                      placeholder="Viết suy nghĩ, ý tưởng, cảm xúc của bạn..." required></textarea>
+                            <div class="form-text">Ghi lại những gì bạn đang nghĩ, cảm nhận hoặc muốn nhớ</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="keywords" class="form-label small text-muted">
+                                <i class="fas fa-tags me-1"></i>Từ khóa
+                            </label>
+                            <input type="text" class="form-control" id="keywords" name="keywords" 
+                                   placeholder="học tập, công việc, gia đình..." required>
+                            <div class="form-text">Phân cách bằng dấu phẩy (,) để dễ tìm kiếm sau này</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="weight" class="form-label small text-muted">
+                                <i class="fas fa-star me-1"></i>Mức độ quan trọng
+                            </label>
+                            <select class="form-select" id="weight" name="weight" required>
+                                <option value="1">1 ⭐ - Ít quan trọng</option>
+                                <option value="2">2 ⭐⭐ - Hơi quan trọng</option>
+                                <option value="3" selected>3 ⭐⭐⭐ - Quan trọng</option>
+                                <option value="4">4 ⭐⭐⭐⭐ - Rất quan trọng</option>
+                                <option value="5">5 ⭐⭐⭐⭐⭐ - Cực kỳ quan trọng</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label for="image" class="form-label small text-muted">
+                            <i class="fas fa-image me-1"></i>Ảnh minh họa (tùy chọn)
+                        </label>
+                        <input type="file" class="form-control" id="image" name="image" 
+                               accept="image/*" onchange="previewImage(this)">
+                        <div class="form-text">Thêm ảnh để minh họa cho suy nghĩ của bạn</div>
+                        <div id="imagePreview" class="mt-2" style="display: none;">
+                            <img id="previewImg" src="" alt="Preview" class="img-thumbnail" style="max-width: 150px; max-height: 150px;">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary w-100" title="Lưu suy nghĩ">
+                            <i class="fas fa-plus me-2"></i>Lưu suy nghĩ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card mt-2">
+            <div class="card-body text-center py-2">
+                <small class="text-muted">{{ thoughts|length }} thoughts • {{ (thoughts|sum(attribute='weight') / thoughts|length)|round(1) if thoughts else 0 }}⭐</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Danh sách thoughts -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <h6 class="mb-0">Thoughts</h6>
+                <div>
+                    <a href="{{ url_for('search_thoughts') }}" class="btn btn-outline-secondary btn-sm me-1">Tìm</a>
+                    <a href="{{ url_for('stats') }}" class="btn btn-outline-secondary btn-sm">Stats</a>
+                </div>
+            </div>
+            <div class="card-body p-2">
+                {% if thoughts %}
+                    <div class="row">
+                        {% for thought in thoughts %}
+                        <div class="col-12 mb-3">
+                            <div class="thought-item d-flex">
+                                {% if thought.image_path %}
+                                <div class="thought-image me-3">
+                                    <img src="{{ url_for('uploaded_file', filename=thought.image_path.split('/')[-1]) }}" 
+                                         alt="Thought image" 
+                                         class="img-fluid"
+                                         onclick="showImageModal('{{ url_for('uploaded_file', filename=thought.image_path.split('/')[-1]) }}')">
+                                </div>
+                                {% endif %}
+                                <div class="thought-content flex-grow-1">
+                                    <div class="thought-meta mb-2">
+                                        <span class="badge bg-{{ 'danger' if thought.weight >= 4 else 'warning' if thought.weight >= 3 else 'secondary' }} me-2">{{ thought.weight }}</span>
+                                        <small class="text-muted">{{ thought.date.split(' ')[0] }}</small>
+                                    </div>
+                                    <div class="thought-text mb-2">{{ thought.content }}</div>
+                                    <div class="thought-keywords">
+                                        {% for keyword in thought.keywords %}
+                                        <span class="badge bg-light text-dark me-1">{{ keyword }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="thought-actions">
+                                    <a href="{{ url_for('delete_thought', thought_id=thought.id) }}" 
+                                       class="btn btn-outline-danger btn-sm"
+                                       onclick="return confirm('Xóa?')">×</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <small class="text-muted">Chưa có suy nghĩ nào</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Ảnh minh họa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="Thought image" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+function showImageModal(imageSrc) {
+    const modalImage = document.getElementById('modalImage');
+    modalImage.src = imageSrc;
+    
+    const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+}
+
+// Xử lý xoay icon khi mở/đóng hướng dẫn
+document.addEventListener('DOMContentLoaded', function() {
+    const helpToggle = document.getElementById('helpToggle');
+    const helpGuide = document.getElementById('helpGuide');
+    
+    helpGuide.addEventListener('show.bs.collapse', function() {
+        helpToggle.style.transform = 'rotate(180deg)';
+    });
+    
+    helpGuide.addEventListener('hide.bs.collapse', function() {
+        helpToggle.style.transform = 'rotate(0deg)';
+    });
+});
+</script>
+
+{% endblock %}

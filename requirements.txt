@@ -1,0 +1,10 @@
+# Thought Tracker Requirements
+
+# Web App Dependencies
+Flask==2.3.3
+Werkzeug==2.3.7
+Pillow==11.3.0
+
+# Optional: For better development experience
+# python-dotenv==1.0.0  # For environment variables
+# gunicorn==21.2.0      # For production deployment

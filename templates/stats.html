@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Thống kê - Thought Tracker{% endblock %}
+
+{% block content %}
+<!-- Filter thời gian -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('stats') }}">
+                    <div class="row g-3">
+                        <div class="col-4">
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ start_date }}" placeholder="Từ">
+                        </div>
+                        <div class="col-4">
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ end_date }}" placeholder="Đến">
+                        </div>
+                        <div class="col-4">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Lọc</button>
+                                <a href="{{ url_for('stats') }}" class="btn btn-outline-secondary">Reset</a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                
+                {% if start_date or end_date %}
+                <div class="mt-3">
+                    <div class="alert alert-light border">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Bộ lọc đang áp dụng:</strong>
+                        {% if start_date and end_date %}
+                            Từ {{ start_date }} đến {{ end_date }}
+                        {% elif start_date %}
+                            Từ {{ start_date }} trở đi
+                        {% elif end_date %}
+                            Đến {{ end_date }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Tổng quan -->
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h2 class="text-primary">
+                    <i class="fas fa-chart-bar me-2"></i>Thống kê tổng quan
+                </h2>
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="text-primary">
+                            <i class="fas fa-brain fa-3x"></i>
+                            <h3 class="mt-2">{{ total_thoughts }}</h3>
+                            <p>Tổng số thoughts</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-primary">
+                            <i class="fas fa-star fa-3x"></i>
+                            <h3 class="mt-2">{{ weight_stats.get(5, 0) }}</h3>
+                            <p>Thoughts quan trọng (5⭐)</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-primary">
+                            <i class="fas fa-fire fa-3x"></i>
+                            <h3 class="mt-2">{{ weight_stats.get(4, 0) + weight_stats.get(5, 0) }}</h3>
+                            <p>Thoughts ưu tiên (4-5⭐)</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-primary">
+                            <i class="fas fa-tags fa-3x"></i>
+                            <h3 class="mt-2">{{ top_keywords|length }}</h3>
+                            <p>Keywords khác nhau</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Thống kê theo trọng số -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-star me-2"></i>Phân bố theo trọng số
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for weight in range(5, 0, -1) %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>
+                            {% for i in range(weight) %}
+                            <i class="fas fa-star text-primary"></i>
+                            {% endfor %}
+                            {% for i in range(5-weight) %}
+                            <i class="fas fa-star text-muted"></i>
+                            {% endfor %}
+                            <span class="ms-2">{{ weight }}/5</span>
+                        </span>
+                        <span class="fw-bold">{{ weight_stats.get(weight, 0) }} thoughts</span>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        {% set percentage = (weight_stats.get(weight, 0) / total_thoughts * 100) if total_thoughts > 0 else 0 %}
+                        <div class="progress-bar bg-primary" 
+                             style="width: {{ percentage }}%">
+                            {{ "%.1f"|format(percentage) }}%
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top keywords -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tags me-2"></i>Top Keywords
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if top_keywords %}
+                    {% for keyword, count in top_keywords %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-light text-dark fs-6">{{ keyword }}</span>
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                <i class="fas fa-chart-line text-primary"></i>
+                            </div>
+                            <span class="fw-bold">{{ count }}</span>
+                            <small class="text-muted ms-1">lần</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-tags fa-2x text-muted"></i>
+                        <p class="text-muted mt-2">Chưa có keywords nào</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Biểu đồ bubble chart cho keywords -->
+    <div class="col-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-circle me-2"></i>Bubble Chart - Keywords theo trọng số
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if bubble_keywords %}
+                    <div class="bubble-chart-container" style="min-height: 400px; position: relative; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; padding: 20px;">
+                        {% set max_weight = bubble_keywords[0][1] %}
+                        {% set min_weight = bubble_keywords[-1][1] %}
+                        {% set weight_range = max_weight - min_weight %}
+                        
+                        {% for keyword, total_weight in bubble_keywords %}
+                            {% set size_ratio = (total_weight - min_weight) / weight_range if weight_range > 0 else 1 %}
+                            {% set bubble_size = 30 + (size_ratio * 120) %}  <!-- Từ 30px đến 150px -->
+                            {% set colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2'] %}
+                            {% set color_index = loop.index0 % colors|length %}
+                            
+                            <div class="bubble" 
+                                 style="
+                                    position: absolute;
+                                    width: {{ bubble_size }}px;
+                                    height: {{ bubble_size }}px;
+                                    background: {{ colors[color_index] }};
+                                    border-radius: 50%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    color: white;
+                                    font-weight: bold;
+                                    font-size: {{ (bubble_size * 0.15)|round }}px;
+                                    text-align: center;
+                                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                                    cursor: pointer;
+                                    transition: all 0.3s ease;
+                                    left: {{ (loop.index0 * 15 + 50) % 80 }}%;
+                                    top: {{ (loop.index0 * 20 + 30) % 60 }}%;
+                                    z-index: {{ 10 - loop.index0 }};
+                                 "
+                                 data-keyword="{{ keyword }}"
+                                 data-weight="{{ total_weight }}"
+                                 title="{{ keyword }}: {{ total_weight }} điểm">
+                                <span style="padding: 5px; word-break: break-word;">{{ keyword[:8] }}{% if keyword|length > 8 %}...{% endif %}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="alert alert-light border">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Giải thích:</strong><br>
+                                    • Kích thước hình tròn = Tổng trọng số của keyword<br>
+                                    • Màu sắc khác nhau cho mỗi keyword<br>
+                                    • <strong>Kéo thả</strong> để di chuyển các hình tròn<br>
+                                    • Hover để xem chi tiết, click để tìm kiếm
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-light border">
+                                    <i class="fas fa-chart-pie me-2"></i>
+                                    <strong>Top keywords:</strong><br>
+                                    {% for keyword, total_weight in bubble_keywords[:5] %}
+                                        {{ loop.index }}. <strong>{{ keyword }}</strong> ({{ total_weight }} điểm)<br>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <button id="resetBubbleLayout" class="btn btn-outline-primary">
+                                <i class="fas fa-refresh me-2"></i>Sắp xếp lại layout
+                            </button>
+                            <button id="shuffleBubbles" class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-random me-2"></i>Xáo trộn ngẫu nhiên
+                            </button>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-circle fa-2x text-muted"></i>
+                        <p class="text-muted mt-2">Chưa có keywords nào</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Biểu đồ xu hướng theo thời gian -->
+    <div class="col-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Xu hướng theo thời gian
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if daily_stats %}
+                    <div class="row">
+                        {% for date, count in daily_stats %}
+                        <div class="col-md-2 col-sm-4 col-6 mb-3">
+                            <div class="text-center">
+                                <div class="fw-bold text-primary">{{ count }}</div>
+                                <small class="text-muted">{{ date }}</small>
+                                <div class="progress mt-1" style="height: 8px;">
+                                    {% set max_count = daily_stats|map(attribute=1)|max %}
+                                    {% set percentage = (count / max_count * 100) if max_count > 0 else 0 %}
+                                    <div class="progress-bar bg-primary" style="width: {{ percentage }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if daily_stats|length > 1 %}
+                    <div class="mt-3">
+                        <div class="alert alert-light border">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Phân tích:</strong>
+                            {% set max_day = daily_stats|max(attribute=1) %}
+                            {% set min_day = daily_stats|min(attribute=1) %}
+                            {% set avg_day = (daily_stats|map(attribute=1)|sum / daily_stats|length)|round(1) %}
+                            
+                            Ngày có nhiều thoughts nhất: <strong>{{ max_day[0] }}</strong> ({{ max_day[1] }} thoughts)<br>
+                            Ngày có ít thoughts nhất: <strong>{{ min_day[0] }}</strong> ({{ min_day[1] }} thoughts)<br>
+                            Trung bình mỗi ngày: <strong>{{ avg_day }}</strong> thoughts
+                        </div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-line fa-2x text-muted"></i>
+                        <p class="text-muted mt-2">Chưa có dữ liệu theo thời gian</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hành động nhanh -->
+    <div class="col-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">Hành động nhanh</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-plus me-2"></i>Thêm thought mới
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('search_thoughts') }}" class="btn btn-info btn-lg w-100">
+                            <i class="fas fa-search me-2"></i>Tìm kiếm thoughts
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-success btn-lg w-100">
+                            <i class="fas fa-list me-2"></i>Xem tất cả
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

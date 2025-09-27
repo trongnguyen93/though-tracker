@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Tìm kiếm - Thought Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Form tìm kiếm -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">Tìm kiếm</h6>
+            </div>
+            <div class="card-body p-2">
+                <form method="GET" action="{{ url_for('search_thoughts') }}">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="keyword" name="keyword" 
+                               value="{{ keyword }}" placeholder="Từ khóa...">
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <select class="form-select" id="min_weight" name="min_weight">
+                                <option value="">Min</option>
+                                <option value="1" {{ 'selected' if min_weight == 1 else '' }}>1</option>
+                                <option value="2" {{ 'selected' if min_weight == 2 else '' }}>2</option>
+                                <option value="3" {{ 'selected' if min_weight == 3 else '' }}>3</option>
+                                <option value="4" {{ 'selected' if min_weight == 4 else '' }}>4</option>
+                                <option value="5" {{ 'selected' if min_weight == 5 else '' }}>5</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select" id="max_weight" name="max_weight">
+                                <option value="">Max</option>
+                                <option value="1" {{ 'selected' if max_weight == 1 else '' }}>1</option>
+                                <option value="2" {{ 'selected' if max_weight == 2 else '' }}>2</option>
+                                <option value="3" {{ 'selected' if max_weight == 3 else '' }}>3</option>
+                                <option value="4" {{ 'selected' if max_weight == 4 else '' }}>4</option>
+                                <option value="5" {{ 'selected' if max_weight == 5 else '' }}>5</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ start_date }}" placeholder="Từ">
+                        </div>
+                        <div class="col-6">
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ end_date }}" placeholder="Đến">
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Tìm</button>
+                        <a href="{{ url_for('search_thoughts') }}" class="btn btn-outline-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Kết quả tìm kiếm -->
+        <div class="card mt-2">
+            <div class="card-body text-center py-2">
+                <small class="text-muted">{{ thoughts|length }} kết quả</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Kết quả tìm kiếm -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <h6 class="mb-0">Kết quả</h6>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Trang chủ</a>
+            </div>
+            <div class="card-body p-2">
+                {% if thoughts %}
+                    <div class="row">
+                        {% for thought in thoughts %}
+                        <div class="col-12 mb-3">
+                            <div class="thought-item d-flex">
+                                {% if thought.image_path %}
+                                <div class="thought-image me-3">
+                                    <img src="{{ url_for('uploaded_file', filename=thought.image_path.split('/')[-1]) }}" 
+                                         alt="Thought image" 
+                                         class="img-fluid"
+                                         onclick="showImageModal('{{ url_for('uploaded_file', filename=thought.image_path.split('/')[-1]) }}')">
+                                </div>
+                                {% endif %}
+                                <div class="thought-content flex-grow-1">
+                                    <div class="thought-meta mb-2">
+                                        <span class="badge bg-{{ 'danger' if thought.weight >= 4 else 'warning' if thought.weight >= 3 else 'secondary' }} me-2">{{ thought.weight }}</span>
+                                        <small class="text-muted">{{ thought.date.split(' ')[0] }}</small>
+                                    </div>
+                                    <div class="thought-text mb-2">{{ thought.content }}</div>
+                                    <div class="thought-keywords">
+                                        {% for keyword in thought.keywords %}
+                                        <span class="badge bg-light text-dark me-1">{{ keyword }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="thought-actions">
+                                    <a href="{{ url_for('delete_thought', thought_id=thought.id) }}" 
+                                       class="btn btn-outline-danger btn-sm"
+                                       onclick="return confirm('Xóa?')">×</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <small class="text-muted">Không tìm thấy kết quả</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Ảnh minh họa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="Thought image" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showImageModal(imageSrc) {
+    const modalImage = document.getElementById('modalImage');
+    modalImage.src = imageSrc;
+    
+    const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+}
+</script>
+
+{% endblock %}
