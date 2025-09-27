@@ -41,7 +41,9 @@ class ThoughtDatabase:
     def __init__(self):
         # Lấy connection string từ environment variable
         self.conn_string = os.getenv('DATABASE_URL')
+        print(f"DEBUG: DATABASE_URL = {self.conn_string}")
         if not self.conn_string:
+            print("ERROR: DATABASE_URL environment variable is required")
             raise ValueError("DATABASE_URL environment variable is required")
         self.init_database()
     
