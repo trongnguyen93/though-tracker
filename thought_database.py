@@ -42,13 +42,41 @@ class ThoughtDatabase:
         # Lấy connection string từ environment variable
         self.conn_string = os.getenv('DATABASE_URL')
         if not self.conn_string:
-            # Fallback cho local development
-            self.conn_string = "postgresql://localhost/thoughts"
-        self.init_database()
+            # Fallback cho local development - sử dụng SQLite
+            import sqlite3
+            self.use_sqlite = True
+            self.db_path = "thoughts.db"
+            self.init_sqlite_database()
+        else:
+            self.use_sqlite = False
+            self.init_database()
     
     def get_connection(self):
         """Tạo connection đến PostgreSQL"""
+        if self.use_sqlite:
+            import sqlite3
+            return sqlite3.connect(self.db_path)
         return psycopg2.connect(self.conn_string)
+    
+    def init_sqlite_database(self):
+        """Khởi tạo SQLite database cho local development"""
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS thoughts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL,
+                keywords TEXT NOT NULL,
+                weight INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                image_path TEXT
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
     
     def init_database(self):
         """Khởi tạo database và tạo bảng thoughts"""
@@ -77,13 +105,20 @@ class ThoughtDatabase:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute('''
-            INSERT INTO thoughts (content, keywords, weight, date, image_path)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id
-        ''', (thought.content, json.dumps(thought.keywords), thought.weight, thought.date, thought.image_path))
+        if self.use_sqlite:
+            cursor.execute('''
+                INSERT INTO thoughts (content, keywords, weight, date, image_path)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (thought.content, json.dumps(thought.keywords), thought.weight, thought.date, thought.image_path))
+            thought_id = cursor.lastrowid
+        else:
+            cursor.execute('''
+                INSERT INTO thoughts (content, keywords, weight, date, image_path)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (thought.content, json.dumps(thought.keywords), thought.weight, thought.date, thought.image_path))
+            thought_id = cursor.fetchone()[0]
         
-        thought_id = cursor.fetchone()[0]
         conn.commit()
         conn.close()
         
@@ -92,22 +127,39 @@ class ThoughtDatabase:
     def get_all_thoughts(self) -> List[Thought]:
         """Lấy tất cả thoughts"""
         conn = self.get_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        cursor.execute('SELECT * FROM thoughts ORDER BY date DESC')
-        rows = cursor.fetchall()
-        
-        thoughts = []
-        for row in rows:
-            thought = Thought(
-                content=row['content'],
-                keywords=row['keywords'],
-                weight=row['weight'],
-                date=row['date'],
-                image_path=row['image_path']
-            )
-            thought.id = row['id']
-            thoughts.append(thought)
+        if self.use_sqlite:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM thoughts ORDER BY date DESC')
+            rows = cursor.fetchall()
+            
+            thoughts = []
+            for row in rows:
+                thought = Thought(
+                    content=row[1],
+                    keywords=json.loads(row[2]),
+                    weight=row[3],
+                    date=row[4],
+                    image_path=row[5]
+                )
+                thought.id = row[0]
+                thoughts.append(thought)
+        else:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute('SELECT * FROM thoughts ORDER BY date DESC')
+            rows = cursor.fetchall()
+            
+            thoughts = []
+            for row in rows:
+                thought = Thought(
+                    content=row['content'],
+                    keywords=row['keywords'],
+                    weight=row['weight'],
+                    date=row['date'],
+                    image_path=row['image_path']
+                )
+                thought.id = row['id']
+                thoughts.append(thought)
         
         conn.close()
         return thoughts
@@ -116,54 +168,103 @@ class ThoughtDatabase:
                        start_date: str = None, end_date: str = None) -> List[Thought]:
         """Tìm kiếm thoughts theo keyword hoặc trọng số"""
         conn = self.get_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Xây dựng query
-        query = 'SELECT * FROM thoughts WHERE 1=1'
-        params = []
-        
-        if min_weight is not None:
-            query += ' AND weight >= %s'
-            params.append(min_weight)
-        
-        if max_weight is not None:
-            query += ' AND weight <= %s'
-            params.append(max_weight)
-        
-        if start_date:
-            query += ' AND date >= %s'
-            params.append(start_date)
-        
-        if end_date:
-            query += ' AND date <= %s'
-            params.append(end_date)
-        
-        query += ' ORDER BY date DESC'
-        
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        
-        thoughts = []
-        for row in rows:
-            thought = Thought(
-                content=row['content'],
-                keywords=row['keywords'],
-                weight=row['weight'],
-                date=row['date'],
-                image_path=row['image_path']
-            )
-            thought.id = row['id']
+        if self.use_sqlite:
+            cursor = conn.cursor()
+            # Xây dựng query cho SQLite
+            query = 'SELECT * FROM thoughts WHERE 1=1'
+            params = []
             
-            # Tìm kiếm keyword trong Python (hỗ trợ Unicode)
-            if keyword:
-                keyword_lower = keyword.lower()
-                content_match = keyword_lower in thought.content.lower()
-                keywords_match = any(keyword_lower in kw.lower() for kw in thought.keywords)
+            if min_weight is not None:
+                query += ' AND weight >= ?'
+                params.append(min_weight)
+            
+            if max_weight is not None:
+                query += ' AND weight <= ?'
+                params.append(max_weight)
+            
+            if start_date:
+                query += ' AND date >= ?'
+                params.append(start_date)
+            
+            if end_date:
+                query += ' AND date <= ?'
+                params.append(end_date)
+            
+            query += ' ORDER BY date DESC'
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            thoughts = []
+            for row in rows:
+                thought = Thought(
+                    content=row[1],
+                    keywords=json.loads(row[2]),
+                    weight=row[3],
+                    date=row[4],
+                    image_path=row[5]
+                )
+                thought.id = row[0]
                 
-                if content_match or keywords_match:
+                # Tìm kiếm keyword trong Python (hỗ trợ Unicode)
+                if keyword:
+                    keyword_lower = keyword.lower()
+                    content_match = keyword_lower in thought.content.lower()
+                    keywords_match = any(keyword_lower in kw.lower() for kw in thought.keywords)
+                    
+                    if content_match or keywords_match:
+                        thoughts.append(thought)
+                else:
                     thoughts.append(thought)
-            else:
-                thoughts.append(thought)
+        else:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            # Xây dựng query cho PostgreSQL
+            query = 'SELECT * FROM thoughts WHERE 1=1'
+            params = []
+            
+            if min_weight is not None:
+                query += ' AND weight >= %s'
+                params.append(min_weight)
+            
+            if max_weight is not None:
+                query += ' AND weight <= %s'
+                params.append(max_weight)
+            
+            if start_date:
+                query += ' AND date >= %s'
+                params.append(start_date)
+            
+            if end_date:
+                query += ' AND date <= %s'
+                params.append(end_date)
+            
+            query += ' ORDER BY date DESC'
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            thoughts = []
+            for row in rows:
+                thought = Thought(
+                    content=row['content'],
+                    keywords=row['keywords'],
+                    weight=row['weight'],
+                    date=row['date'],
+                    image_path=row['image_path']
+                )
+                thought.id = row['id']
+                
+                # Tìm kiếm keyword trong Python (hỗ trợ Unicode)
+                if keyword:
+                    keyword_lower = keyword.lower()
+                    content_match = keyword_lower in thought.content.lower()
+                    keywords_match = any(keyword_lower in kw.lower() for kw in thought.keywords)
+                    
+                    if content_match or keywords_match:
+                        thoughts.append(thought)
+                else:
+                    thoughts.append(thought)
         
         conn.close()
         return thoughts
@@ -173,7 +274,11 @@ class ThoughtDatabase:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute('DELETE FROM thoughts WHERE id = %s', (thought_id,))
+        if self.use_sqlite:
+            cursor.execute('DELETE FROM thoughts WHERE id = ?', (thought_id,))
+        else:
+            cursor.execute('DELETE FROM thoughts WHERE id = %s', (thought_id,))
+        
         deleted = cursor.rowcount > 0
         
         conn.commit()
