@@ -39,12 +39,29 @@ class ThoughtDatabase:
     """Class quản lý database PostgreSQL cho thoughts"""
     
     def __init__(self):
+        # Debug: In tất cả biến môi trường
+        print("DEBUG: All environment variables:")
+        for key, value in os.environ.items():
+            if 'DATABASE' in key.upper() or 'POSTGRES' in key.upper():
+                print(f"  {key} = {value}")
+        
         # Lấy connection string từ environment variable
         self.conn_string = os.getenv('DATABASE_URL')
         print(f"DEBUG: DATABASE_URL = {self.conn_string}")
+        
+        # Thử các tên khác có thể Railway dùng
         if not self.conn_string:
-            print("ERROR: DATABASE_URL environment variable is required")
+            self.conn_string = os.getenv('POSTGRES_URL')
+            print(f"DEBUG: POSTGRES_URL = {self.conn_string}")
+        
+        if not self.conn_string:
+            self.conn_string = os.getenv('PG_URL')
+            print(f"DEBUG: PG_URL = {self.conn_string}")
+        
+        if not self.conn_string:
+            print("ERROR: No database URL found in environment variables")
             raise ValueError("DATABASE_URL environment variable is required")
+        
         self.init_database()
     
     def get_connection(self):
