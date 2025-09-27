@@ -5,7 +5,8 @@ Flask==2.3.3
 Werkzeug==2.3.7
 Pillow==11.3.0
 
-# SQLite3 is built-in with Python, no need to install
+# Database
+psycopg2-binary==2.9.9
 
 # Production Server
 gunicorn==21.2.0

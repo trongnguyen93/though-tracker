@@ -5,7 +5,7 @@ Thought Tracker Web App - Giao diện web để quản lý suy nghĩ
 """
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
-from thought_tracker import ThoughtTracker, Thought
+from thought_database import ThoughtDatabase, Thought
 import json
 import os
 import uuid
@@ -26,8 +26,8 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 # Tạo thư mục upload nếu chưa có
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Khởi tạo tracker
-tracker = ThoughtTracker()
+# Khởi tạo database
+db = ThoughtDatabase()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -44,7 +44,7 @@ def resize_image(image_path, max_size=(800, 600)):
 @app.route('/')
 def index():
     """Trang chủ - hiển thị form thêm thought và danh sách"""
-    thoughts = tracker.db.get_all_thoughts()
+    thoughts = db.get_all_thoughts()
     return render_template('index.html', thoughts=thoughts)
 
 @app.route('/add', methods=['POST'])
@@ -89,7 +89,8 @@ def add_thought():
                 return redirect(url_for('index'))
         
         # Thêm thought
-        thought_id = tracker.add_thought(content, keywords, weight, image_path)
+        thought = Thought(content, keywords, weight, image_path=image_path)
+        thought_id = db.add_thought(thought)
         flash(f'✅ Đã thêm thought thành công! (ID: {thought_id})', 'success')
         
     except Exception as e:
@@ -101,7 +102,7 @@ def add_thought():
 def delete_thought(thought_id):
     """Xóa thought"""
     try:
-        if tracker.db.delete_thought(thought_id):
+        if db.delete_thought(thought_id):
             flash(f'🗑️ Đã xóa thought ID: {thought_id}', 'success')
         else:
             flash(f'❌ Không tìm thấy thought ID: {thought_id}', 'error')
@@ -124,9 +125,9 @@ def search_thoughts():
     
     # Nếu không có tham số tìm kiếm, hiển thị tất cả
     if not keyword and min_weight is None and max_weight is None and not start_date and not end_date:
-        thoughts = tracker.db.get_all_thoughts()
+        thoughts = db.get_all_thoughts()
     else:
-        thoughts = tracker.db.search_thoughts(keyword, min_weight, max_weight, start_date, end_date)
+        thoughts = db.search_thoughts(keyword, min_weight, max_weight, start_date, end_date)
     
     print(f"DEBUG: Found {len(thoughts)} thoughts")
     
@@ -141,7 +142,7 @@ def search_thoughts():
 @app.route('/api/thoughts')
 def api_thoughts():
     """API endpoint để lấy thoughts dưới dạng JSON"""
-    thoughts = tracker.db.get_all_thoughts()
+    thoughts = db.get_all_thoughts()
     return jsonify([thought.to_dict() for thought in thoughts])
 
 @app.route('/uploads/<filename>')
@@ -158,9 +159,9 @@ def stats():
     
     # Lấy thoughts theo filter
     if start_date or end_date:
-        thoughts = tracker.db.search_thoughts(start_date=start_date, end_date=end_date)
+        thoughts = db.search_thoughts(start_date=start_date, end_date=end_date)
     else:
-        thoughts = tracker.db.get_all_thoughts()
+        thoughts = db.get_all_thoughts()
     
     # Thống kê cơ bản
     total_thoughts = len(thoughts)
